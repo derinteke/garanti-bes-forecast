@@ -1,0 +1,22 @@
+# Data / Veri -- competition data is not redistributable; download it from Kaggle
+data/raw/*
+!data/raw/.gitkeep
+
+# Model binaries and generated submissions / Model dosyaları ve üretilen submission'lar
+models/*.joblib
+submissions/
+
+# Virtual environment / Sanal ortam
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Editors / Editörler
+.vscode/
+.idea/
+.DS_Store

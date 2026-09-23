@@ -1,0 +1,4 @@
+key,label,dev_rmse,dev_vs_mean_pct,dev_months_beating_mean,holdout_rmse,holdout_vs_mean_pct,dev_auc_contributes
+check_customer_history,Final + customer-history features (the override idea as features),6417.390,-5.863,5,4592.040,-11.007,0.884
+check_no_override,2024 notebook (bugs fixed) without the override,6934.106,1.716,2,5635.762,9.221,0.739
+check_drop_rtrndesvamnt,2024 notebook (bugs fixed) without RTRNDESVAMNT,7336.700,7.622,2,5193.710,0.654,0.782

@@ -1,0 +1,7 @@
+key,label,dev_rmse,dev_vs_mean_pct,dev_months_beating_mean,holdout_rmse,holdout_vs_mean_pct,dev_auc_contributes
+0_mean,Baseline: predict the training mean,6817.093,0.000,0,5159.975,0.000,0.500
+1_as_submitted,"My 2024 notebook, replayed exactly",7413.362,8.747,2,5200.836,0.792,0.775
+2_fix_scaler,+ fix: scale the target month with the TRAIN scaler,7357.384,7.926,2,5185.390,0.493,0.783
+3_fix_refit,"+ fix: refit on all rows, not the last CV fold",7345.241,7.747,2,5226.513,1.290,0.782
+4_lgbm_tweedie,"LightGBM (Tweedie), raw features, no override",6421.457,-5.804,5,4633.818,-10.197,0.874
+5_contribution,+ contribution-history features (final),6402.794,-6.077,5,4624.697,-10.374,0.878

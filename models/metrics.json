@@ -1,0 +1,146 @@
+{
+  "validation": {
+    "dev_months": [
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "holdout_month": 11
+  },
+  "ladder": {
+    "0_mean": {
+      "dev_rmse": 6817.093,
+      "dev_vs_mean_pct": 0.0,
+      "dev_months_beating_mean": 0,
+      "holdout_rmse": 5159.975,
+      "holdout_vs_mean_pct": 0.0,
+      "dev_auc_contributes": 0.5
+    },
+    "1_as_submitted": {
+      "dev_rmse": 7413.362,
+      "dev_vs_mean_pct": 8.747,
+      "dev_months_beating_mean": 2,
+      "holdout_rmse": 5200.836,
+      "holdout_vs_mean_pct": 0.792,
+      "dev_auc_contributes": 0.775
+    },
+    "2_fix_scaler": {
+      "dev_rmse": 7357.384,
+      "dev_vs_mean_pct": 7.926,
+      "dev_months_beating_mean": 2,
+      "holdout_rmse": 5185.39,
+      "holdout_vs_mean_pct": 0.493,
+      "dev_auc_contributes": 0.783
+    },
+    "3_fix_refit": {
+      "dev_rmse": 7345.241,
+      "dev_vs_mean_pct": 7.747,
+      "dev_months_beating_mean": 2,
+      "holdout_rmse": 5226.513,
+      "holdout_vs_mean_pct": 1.29,
+      "dev_auc_contributes": 0.782
+    },
+    "4_lgbm_tweedie": {
+      "dev_rmse": 6421.457,
+      "dev_vs_mean_pct": -5.804,
+      "dev_months_beating_mean": 5,
+      "holdout_rmse": 4633.818,
+      "holdout_vs_mean_pct": -10.197,
+      "dev_auc_contributes": 0.874
+    },
+    "5_contribution": {
+      "dev_rmse": 6402.794,
+      "dev_vs_mean_pct": -6.077,
+      "dev_months_beating_mean": 5,
+      "holdout_rmse": 4624.697,
+      "holdout_vs_mean_pct": -10.374,
+      "dev_auc_contributes": 0.878
+    }
+  },
+  "checks": {
+    "check_customer_history": {
+      "dev_rmse": 6417.39,
+      "dev_vs_mean_pct": -5.863,
+      "dev_months_beating_mean": 5,
+      "holdout_rmse": 4592.04,
+      "holdout_vs_mean_pct": -11.007,
+      "dev_auc_contributes": 0.884
+    },
+    "check_no_override": {
+      "dev_rmse": 6934.106,
+      "dev_vs_mean_pct": 1.716,
+      "dev_months_beating_mean": 2,
+      "holdout_rmse": 5635.762,
+      "holdout_vs_mean_pct": 9.221,
+      "dev_auc_contributes": 0.739
+    },
+    "check_drop_rtrndesvamnt": {
+      "dev_rmse": 7336.7,
+      "dev_vs_mean_pct": 7.622,
+      "dev_months_beating_mean": 2,
+      "holdout_rmse": 5193.71,
+      "holdout_vs_mean_pct": 0.654,
+      "dev_auc_contributes": 0.782
+    }
+  },
+  "cv_illusion_pct_vs_mean": {
+    "random_kfold": -6.89,
+    "grouped_kfold": -4.33,
+    "rolling_months": 8.75
+  },
+  "original_kfold_rmse": 7014.8,
+  "top10_share_of_squared_error_by_month": {
+    "3": 0.694,
+    "4": 0.84,
+    "5": 0.876,
+    "6": 0.34,
+    "7": 0.671,
+    "8": 0.939,
+    "9": 0.421,
+    "10": 0.693,
+    "11": 0.297
+  },
+  "p_contributes_by_previous_snapshot_pct": {
+    "Contributed in their previous snapshot": 80.8,
+    "Did not contribute in their previous snapshot": 7.4,
+    "No earlier snapshot": 7.9
+  },
+  "final_model": {
+    "step": "5_contribution",
+    "params": {
+      "objective": "tweedie",
+      "tweedie_variance_power": 1.8,
+      "n_estimators": 500,
+      "learning_rate": 0.03,
+      "num_leaves": 31,
+      "min_child_samples": 200,
+      "subsample": 0.8,
+      "subsample_freq": 1,
+      "colsample_bytree": 0.8
+    },
+    "top_features_gain_pct": {
+      "DESACCUAMNT": 30.27,
+      "CRRASTALL": 15.3,
+      "CONTMONTHAMNT": 6.25,
+      "RTRNDESVAMNT": 4.63,
+      "MAXMATEVR": 4.39,
+      "CONTCOLLAMNT": 3.61,
+      "LSTPRDCNUM": 3.08,
+      "ASTAVGDIF0312": 2.77,
+      "MAXTIMECONTR": 2.09,
+      "CONTDEBTNUM": 2.02,
+      "DEMINFO1": 1.88,
+      "DEBTAVG00": 1.81,
+      "ACCAMNTAVG03": 1.68,
+      "INTPHNNUM03": 1.55,
+      "paid_std": 1.35
+    }
+  },
+  "test_prediction_mean": {
+    "final": 787.6,
+    "replay_2024": 1265.4,
+    "train_target_mean": 782.9
+  }
+}

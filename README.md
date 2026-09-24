@@ -1,17 +1,24 @@
-# 🏦 Garanti BBVA BES — What I Got Wrong, and How I Fixed It
+# 🏦 Garanti BBVA BES: going back to a competition I thought I'd done well in
 
-**EN —** In May 2024 I entered the Garanti BBVA Data Day case study on Kaggle: predict how much
-each customer adds to their private pension (BES) as an **additional contribution** in December 2018,
-scored by RMSE. I finished **36th of 51** with a public RMSE of **9,228**. Two years later I went back
-to my notebook with one question: *what exactly did I do wrong?* This repo is the answer. It replays
-my 2024 notebook exactly, finds six mistakes, measures each one, and rebuilds the model properly.
+**EN —** In May 2024 I joined the Garanti BBVA Data Day case study on Kaggle. The task was to guess
+how much extra money each customer would put into their private pension (BES) in December 2018, on
+top of their regular payments. Scoring was RMSE. I finished **11th out of 51**, and for a long time I
+was pretty happy with that.
+
+Two years on, I opened the notebook again and wanted to know how good the model really was. The honest
+answer turned out to be: not very. When I test it the way the task actually works, it does worse than
+simply predicting the same number for every customer. This repo is me working through why, one
+mistake at a time, and then building the model again properly.
 
 **TR —** Mayıs 2024'te Kaggle'daki Garanti BBVA Data Day vakasına katıldım. Görev, her müşterinin
-Aralık 2018'de bireysel emeklilik (BES) hesabına yatıracağı **ek katkı payını** tahmin etmekti;
-metrik RMSE'ydi. **51 kişi içinde 36.** oldum, public RMSE skorum **9.228**'di. İki yıl sonra
-notebook'uma tek bir soruyla geri döndüm: *tam olarak neyi yanlış yaptım?* Bu repo o sorunun cevabı.
-2024 notebook'umu birebir tekrar çalıştırıyor, altı hata buluyor, her birinin etkisini ölçüyor ve
-modeli baştan doğru şekilde kuruyor.
+Aralık 2018'de bireysel emeklilik (BES) hesabına düzenli ödemesinin üstüne ne kadar ek para
+yatıracağını tahmin etmekti. Puanlama RMSE ileydi. **51 kişi içinde 11.** oldum ve uzun süre bundan
+gayet memnundum.
+
+İki yıl sonra notebook'u tekrar açtım ve modelin gerçekte ne kadar iyi olduğunu merak ettim. Cevap pek
+iç açıcı değildi. Görevin gerçekte işlediği şekilde test edince, model herkese aynı sayıyı söylemekten
+bile kötü çıkıyor. Bu repo, bunun nedenlerini tek tek bulmaya çalıştığım ve sonra modeli düzgünce
+yeniden kurduğum yer.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![LightGBM](https://img.shields.io/badge/LightGBM-Tweedie-green)
@@ -20,214 +27,223 @@ modeli baştan doğru şekilde kuruyor.
 
 ---
 
-## 📊 Results / Sonuçlar
+## 📊 Where things stand / Nereden nereye
 
-**EN —** Every version is scored the way the real task works: to score month *m*, train only on
-months before *m*. June–October are the **dev** months where every choice was made; **November is a
-holdout** that no choice was made on. Because raw RMSE numbers mean little here (see 🐋 below), every
-row is also shown against the most boring model possible: *predict the training mean for everyone*.
+**EN —** I scored every version the same way: to predict a month, the model only gets to see the
+months before it, just like the real task (train up to November, predict December). I made all my
+choices by looking at June to October, and kept November aside as a final check I didn't tune on.
+Next to each score I also put how it compares to the laziest possible model, which predicts the
+average for everyone. On this data that turns out to be a surprisingly hard number to beat.
 
-**TR —** Her sürüm, gerçek görevin işleyişiyle aynı şekilde puanlandı: *m* ayını puanlamak için
-sadece *m*'den önceki aylarla eğitim. Haziran–Ekim, tüm seçimlerin yapıldığı **dev** ayları;
-**Kasım ise hiçbir seçimde kullanılmayan holdout**. Ham RMSE sayıları burada pek bir şey söylemediği
-için (aşağıdaki 🐋 bölümüne bakın) her satırı akla gelebilecek en sıkıcı modelle de kıyaslıyorum:
-*herkese eğitim ortalamasını tahmin et*.
+**TR —** Her sürümü aynı şekilde puanladım: bir ayı tahmin ederken model sadece ondan önceki ayları
+görebiliyor, tıpkı gerçek görevdeki gibi (Kasım'a kadar eğit, Aralık'ı tahmin et). Bütün kararlarımı
+Haziran–Ekim'e bakarak verdim, Kasım'ı ise hiç ayar yapmadığım son bir kontrol olarak kenarda tuttum.
+Her skorun yanına bir de akla gelebilecek en tembel modelle, yani herkese ortalamayı söyleyen modelle
+karşılaştırmayı koydum. Bu veride o sayıyı geçmek sandığımdan çok daha zor çıktı.
 
-| # | Version | Dev RMSE | vs mean | Beats mean (of 5 months) | Nov RMSE | vs mean |
+| # | Version | Jun–Oct RMSE | vs mean | Months it beats the mean (of 5) | Nov RMSE | vs mean |
 |---|---------|:-------:|:-------:|:---:|:-------:|:-------:|
-| 0 | Baseline: predict the training mean | 6,817 | — | — | 5,160 | — |
-| 1 | **My 2024 notebook, replayed exactly** | 7,413 | **+8.7%** | 2 | 5,201 | +0.8% |
-| 2 | + fix: scale the test month with the *train* scaler | 7,357 | +7.9% | 2 | 5,185 | +0.5% |
-| 3 | + fix: refit on all rows, not the last CV fold | 7,345 | +7.7% | 2 | 5,227 | +1.3% |
+| 0 | Just predict the average | 6,817 | — | — | 5,160 | — |
+| 1 | **My 2024 notebook, exactly as it was** | 7,413 | **+8.7%** | 2 | 5,201 | +0.8% |
+| 2 | + scaler bug fixed | 7,357 | +7.9% | 2 | 5,185 | +0.5% |
+| 3 | + "last fold" bug fixed | 7,345 | +7.7% | 2 | 5,227 | +1.3% |
 | 4 | LightGBM (Tweedie), raw features | 6,421 | −5.8% | 5 | 4,634 | −10.2% |
 | 5 | **+ contribution-history features (final)** | **6,403** | **−6.1%** | **5** | **4,625** | **−10.4%** |
 
 <p align="center"><img src="reports/figures/ladder.png" width="860"></p>
 
-**EN —** The uncomfortable headline: **my 2024 model was worse than predicting one constant for
-everyone.** Fixing its two bugs barely changes that. What changes it is replacing the model.
+**EN —** So my 2024 model was worse than the average, and fixing its two bugs barely moves it. What
+actually made the difference was changing the model itself.
 
-**TR —** İşin rahatsız edici özeti: **2024 modelim, herkese tek bir sabit sayı tahmin etmekten daha
-kötüydü.** İki bug'ını düzeltmek bunu neredeyse hiç değiştirmiyor. Değiştiren şey, modelin kendisini
-değiştirmek.
+**TR —** Kısacası 2024 modelim ortalamanın gerisindeydi ve iki bug'ını düzeltmek bunu neredeyse hiç
+değiştirmiyor. Asıl farkı yaratan, modelin kendisini değiştirmek oldu.
 
-## 🐞 The six mistakes / Altı hata
+## 🐞 What I got wrong / Nerede hata yaptım
 
-### 1. I never compared against a baseline / Hiç baseline ile kıyaslamadım
+### 1. I never checked it against the average / Ortalamayla hiç kıyaslamadım
 
-**EN —** Under RMSE the best constant is the mean, so "predict the mean" is the bar any model has to
-clear. I never checked. Replayed under honest validation, my notebook loses to it by 8.7% on the dev
-months and only beats it in 2 of 5 months. [`src/original.py`](src/original.py) reproduces my notebook
-line by line (it matches every prediction the notebook printed), so this is my actual model.
+**EN —** With RMSE, predicting the average is the best you can do without looking at any features.
+Any real model has to beat that, and I simply never checked. When I replay my notebook under honest
+validation, it's 8.7% worse than the average and only wins in 2 of the 5 months. The replay in
+[`src/original.py`](src/original.py) gives exactly the same predictions my notebook printed back
+then, so this really is my model and not a weaker copy of it.
 
-**TR —** RMSE altında en iyi sabit tahmin ortalamadır; dolayısıyla "ortalamayı tahmin et", her
-modelin aşması gereken çıta. Ben hiç kontrol etmemişim. Dürüst doğrulamayla tekrar çalıştırıldığında
-notebook'um dev aylarında bu çıtanın %8,7 gerisinde kalıyor ve 5 ayın sadece 2'sinde onu geçebiliyor.
-[`src/original.py`](src/original.py) notebook'umu satır satır tekrar ediyor (notebook'un yazdırdığı
-her tahminle aynı sonucu veriyor); yani bu gerçekten benim modelim.
+**TR —** RMSE'de hiçbir özelliğe bakmadan yapabileceğin en iyi şey ortalamayı tahmin etmek. Gerçek bir
+modelin bunu geçmesi gerekiyor, ben de bunu hiç kontrol etmemişim. Notebook'umu dürüst bir doğrulamayla
+yeniden çalıştırınca ortalamadan %8,7 kötü çıkıyor ve 5 ayın sadece 2'sinde öne geçiyor.
+[`src/original.py`](src/original.py) içindeki tekrar, notebook'umun o zaman yazdırdığı tahminlerin
+aynısını veriyor; yani bu gerçekten benim modelim, zayıflatılmış bir kopyası değil.
 
-### 2. My cross-validation told me a comforting story / Çapraz doğrulamam bana rahatlatıcı bir hikâye anlattı
+### 2. My cross-validation made me feel better than I should have / Çapraz doğrulama beni boşuna rahatlattı
 
 <p align="center"><img src="reports/figures/cv_illusion.png" width="720"></p>
 
-**EN —** I ran a shuffled 10-fold CV (RMSE 7,015) and read it as progress. On those same folds the
-model looks 6.9% *better* than the mean. Two leaks cause that. Shuffling mixes all months, so the model
-trains on the future. And 15,412 customers appear more than once, so the same person lands on both
-sides of a fold. Validate like the real task (past months → next month) and the sign flips to +8.7%.
+**EN —** Back then I ran a shuffled 10-fold CV, got an RMSE of 7,015 and took it as a good sign. On
+those same folds the model even looks 6.9% better than the average. The problem is that shuffling
+mixes all the months together, so the model gets to learn from the future. On top of that, 15,412
+customers show up more than once, so the same person ends up on both sides of a split. Once I
+validate month by month, the way the real task works, the picture flips to 8.7% worse.
 
-**TR —** Karıştırılmış 10-fold CV çalıştırmışım (RMSE 7.015) ve bunu ilerleme sanmışım. Aynı
-fold'larda model, ortalamadan %6,9 *daha iyi* görünüyor. Bunun iki sızıntı sebebi var. Karıştırma tüm
-ayları birbirine kattığı için model gelecekle eğitiliyor. Ayrıca 15.412 müşteri birden fazla kez
-görünüyor, yani aynı kişi fold'un iki tarafına da düşüyor. Gerçek görev gibi doğrulayınca (geçmiş
-aylar → sonraki ay) işaret +%8,7'ye dönüyor.
+**TR —** O zaman karıştırılmış bir 10-fold CV çalıştırmış, 7.015 RMSE almış ve bunu iyiye işaret
+saymıştım. Aynı fold'larda model ortalamadan %6,9 iyi bile görünüyor. Sorun şu: karıştırınca bütün
+aylar birbirine giriyor ve model gelecekten öğrenmiş oluyor. Üstüne 15.412 müşteri birden fazla kez
+geçiyor, yani aynı kişi bölmenin iki tarafına da düşebiliyor. Gerçek görevdeki gibi ay ay doğrulayınca
+tablo tersine dönüyor ve model %8,7 kötü çıkıyor.
 
-### 3. `scaler.fit_transform(df_test)` / Test verisinde scaler'ı yeniden fit etmek
+### 3. I rescaled the test data on its own / Test verisini kendi başına ölçekledim
 
-**EN —** The test month was standardised with its *own* mean and standard deviation instead of the
-training ones. The coefficients were therefore applied to features on a different scale (`month`
-became 0 everywhere, as if December were July). [`tests/test_pipeline.py`](tests/test_pipeline.py)
-shows this bug wrecking an otherwise perfect model.
+**EN —** I wrote `scaler.fit_transform(df_test)` where it should have been `scaler.transform`. That
+means the December data was scaled with its own averages instead of the training ones, so the model's
+coefficients were being applied to numbers on a slightly different scale. The `month` column even
+became 0 everywhere, which to the model looks like July. There's a test in
+[`tests/test_pipeline.py`](tests/test_pipeline.py) that shows this one line ruining an otherwise
+perfect model.
 
-**TR —** Test ayı, eğitimdekiler yerine *kendi* ortalaması ve standart sapmasıyla ölçeklenmiş.
-Katsayılar bu yüzden farklı ölçekteki özelliklere uygulanmış (`month` her yerde 0 olmuş; sanki
-Aralık, Temmuz'muş gibi). [`tests/test_pipeline.py`](tests/test_pipeline.py) bu bug'ın kusursuz bir
-modeli nasıl bozduğunu gösteriyor.
+**TR —** `scaler.transform` yazmam gereken yere `scaler.fit_transform(df_test)` yazmışım. Yani Aralık
+verisi eğitimin değil kendi ortalamalarıyla ölçeklenmiş ve modelin katsayıları biraz farklı ölçekteki
+sayılara uygulanmış. `month` sütunu bile her yerde 0 olmuş, bu da model için Temmuz demek.
+[`tests/test_pipeline.py`](tests/test_pipeline.py) içinde bu tek satırın aslında kusursuz çalışan bir
+modeli nasıl bozduğunu gösteren bir test var.
 
-### 4. The last CV fold's model made my predictions / Tahminleri son CV fold'unun modeli yaptı
+### 4. The model from the last fold made my predictions / Tahminleri son fold'daki model yaptı
 
-**EN —** My CV loop kept overwriting `model` and I never refit it on all the data, so the submission
-came from a model that had seen 90% of the rows. Bugs 3 and 4 were real, but fixing both moves the dev
-RMSE by less than 1%. **The bugs weren't why I lost; the model was.**
+**EN —** My CV loop overwrote `model` every round, and I never trained it again on the full data. So
+my submission came from whatever model was fitted in the tenth fold, which had only seen 90% of the
+rows. Both of these bugs were real, but fixing them changes the score by less than 1%. They weren't
+the main problem; the model was.
 
-**TR —** CV döngüm `model`'in üzerine yazıp durmuş ve onu hiç tüm veriyle yeniden eğitmemişim;
-submission, satırların %90'ını görmüş bir modelden gelmiş. 3. ve 4. bug gerçekti, ama ikisini
-düzeltmek dev RMSE'yi %1'den az oynatıyor. **Kaybetmemin sebebi bug'lar değil, modeldi.**
+**TR —** CV döngüm her turda `model`'in üzerine yazmış, ben de onu sonunda tüm veriyle bir daha
+eğitmemişim. Yani submission'ım onuncu fold'da eğitilen, satırların sadece %90'ını görmüş modelden
+gelmiş. İki bug da gerçekti, ama düzeltince skor %1'den az değişiyor. Asıl sorun onlar değil, modelin
+kendisiydi.
 
-### 5. A good idea in the wrong place / Yanlış yerde iyi bir fikir
+### 5. A good hunch, used the wrong way / Doğru sezgi, yanlış kullanım
 
 <p align="center"><img src="reports/figures/repeat_signal.png" width="720"></p>
 
-**EN —** After predicting, I overwrote the prediction for returning customers with their last
-positive contribution. The hunch was **right**: people who contributed in their previous snapshot
-contribute again 81% of the time, against 7% for those who didn't. As a hard override, though, it's a
-coin flip under RMSE. Removing it helps on the dev months (+7.7% → +1.7%) and hurts badly on November
-(+1.3% → +9.2%), because copying an amount is a big bet on exactly the rows that decide RMSE.
-Given to LightGBM as features, the same idea improves *who-will-contribute* ranking (AUC 0.878 →
-0.884) but not dev RMSE (−6.1% → −5.9%), so by my own rule it stayed out of the final model
-([`reports/checks.csv`](reports/checks.csv)).
+**EN —** After predicting, I replaced the prediction for customers I'd seen before with their last
+positive contribution. The instinct behind it was right. People who contributed last time contribute
+again 81% of the time, compared to 7% for those who didn't. But swapping in a copied amount is a big
+bet on exactly the rows that decide RMSE, and it goes either way: removing it helps in June to October
+(+7.7% → +1.7%) and hurts a lot in November (+1.3% → +9.2%). When I gave the same idea to LightGBM as
+features instead, it got better at telling who will contribute (AUC 0.878 → 0.884), but the RMSE
+didn't improve (−6.1% → −5.9%). Since I'd decided to pick the final model by RMSE, I left it out
+(see [`reports/checks.csv`](reports/checks.csv)).
 
-**TR —** Tahminden sonra, daha önce görülen müşterilerin tahminini son pozitif katkılarıyla
-değiştirmişim. Sezgi **doğruydu**: önceki anlık görüntüsünde katkı yapanlar %81 ihtimalle yine katkı
-yapıyor, yapmayanlarda bu oran %7. Ama katı bir override olarak RMSE altında yazı tura. Kaldırınca dev
-aylarında iyileşiyor (+%7,7 → +%1,7), Kasım'da ise ciddi kötüleşiyor (+%1,3 → +%9,2); çünkü bir
-tutarı kopyalamak, tam da RMSE'yi belirleyen satırlar üzerine oynanmış büyük bir bahis. Aynı fikir
-LightGBM'e özellik olarak verildiğinde *kimin katkı yapacağını* sıralamayı iyileştiriyor (AUC 0,878 →
-0,884), ama dev RMSE'yi iyileştirmiyor (−%6,1 → −%5,9). Kendi kuralıma göre bu yüzden final modele
-girmedi ([`reports/checks.csv`](reports/checks.csv)).
+**TR —** Tahminden sonra, daha önce gördüğüm müşterilerin tahminini son pozitif katkılarıyla
+değiştirmişim. Arkasındaki sezgi doğruydu: önceki sefer katkı yapanların %81'i yine yapıyor, yapmayanlarda
+bu oran %7. Ama kopyalanmış bir tutarı olduğu gibi koymak, tam da RMSE'yi belirleyen satırlar üzerine
+büyük bir bahis ve iki yöne de gidebiliyor. Kaldırınca Haziran–Ekim'de iyileşiyor (+%7,7 → +%1,7),
+Kasım'da ise ciddi kötüleşiyor (+%1,3 → +%9,2). Aynı fikri LightGBM'e özellik olarak verince kimin
+katkı yapacağını daha iyi ayırt ediyor (AUC 0,878 → 0,884), ama RMSE iyileşmiyor (−%6,1 → −%5,9). Final
+modeli RMSE'ye göre seçeceğime baştan karar verdiğim için onu dışarıda bıraktım
+([`reports/checks.csv`](reports/checks.csv)).
 
 ### 6. I trusted a single month / Tek bir aya güvendim
 
-**EN —** My 2024 feature search tried ~1,000 feature combinations, trained on March–October and
-scored only on November. Its loudest message was "drop `RTRNDESVAMNT`". Across five dev months that
-gain almost disappears (+7.7% → +7.6%). One whale-driven month isn't enough evidence to pick features.
+**EN —** In 2024 I tried around 1,000 feature combinations, training on March to October and scoring
+only on November. The clearest thing it told me was to drop `RTRNDESVAMNT`. When I check that across
+five months instead of one, the gain nearly disappears (+7.7% → +7.6%). One month on this data just
+isn't enough to decide anything.
 
-**TR —** 2024'teki özellik aramam ~1.000 kombinasyonu Mart–Ekim ile eğitip yalnızca Kasım üzerinde
-puanlıyordu. En yüksek sesle söylediği şey "`RTRNDESVAMNT`'yi çıkar" oldu. Beş dev ayında bu kazanç
-neredeyse yok oluyor (+%7,7 → +%7,6). Balinaların belirlediği tek bir ay, özellik seçmek için yeterli
-kanıt değil.
+**TR —** 2024'te yaklaşık 1.000 özellik kombinasyonu denemiş, Mart–Ekim ile eğitip sadece Kasım'a göre
+puanlamıştım. Bana en net söylediği şey `RTRNDESVAMNT`'yi çıkarmamdı. Bunu tek ay yerine beş ayda
+kontrol edince kazanç neredeyse kayboluyor (+%7,7 → +%7,6). Bu veride tek bir aya bakıp karar vermek
+yetmiyor.
 
-## 🐋 Why every improvement looks small / Her iyileşme neden küçük görünüyor
+## 🐋 Why the improvements look small / İyileşmeler neden küçük görünüyor
 
 <p align="center"><img src="reports/figures/whale_share.png" width="720"></p>
 
-**EN —** The target is 90% zeros with a tail that reaches 1.26 million. In most months the 10
-largest rows (out of 15–34 thousand) are most of the squared error, and in April a single row is
-three quarters of it. No feature predicts a seven-figure top-up, so RMSE here mostly measures how
-badly you miss the whales. That is why the best model is "only" 6–10% better than a constant, why most of
-the leaderboard sat between 8,500 and 9,400, and why I pool five months before believing anything.
+**EN —** Nine out of ten rows are zero, and the few that aren't can get huge: the largest single
+contribution is 1.26 million. In most months the 10 biggest rows (out of 15 to 34 thousand) make up
+most of the squared error, and in April one row alone is about three quarters of it. Nobody can
+predict a seven-figure top-up from these columns, so RMSE here mostly comes down to how badly you miss
+a handful of big savers. That's why even a clearly better model only beats the average by 6 to 10%,
+why most of the public leaderboard sat between 8,500 and 9,400, and why I stopped trusting any
+single month.
 
-**TR —** Hedefin %90'ı sıfır, kuyruğu ise 1,26 milyona kadar uzanıyor. Çoğu ayda (15–34 bin satır
-arasından) en büyük 10 satır karesel hatanın çoğunu oluşturuyor; Nisan'da tek bir satır hatanın
-dörtte üçü. Hiçbir özellik yedi haneli bir ek katkıyı tahmin edemez, o yüzden burada RMSE büyük
-ölçüde balinaları ne kadar kaçırdığınızı ölçüyor. En iyi modelin sabit tahminden "sadece" %6–10 iyi
-olması, leaderboard'un çoğunun 8.500–9.400 arasına sıkışması ve bir şeye inanmadan önce beş ayı birlikte
-değerlendirmem bundan.
+**TR —** On satırdan dokuzu sıfır, sıfır olmayanlar ise çok büyüyebiliyor: tek seferde yatırılan en
+büyük ek katkı 1,26 milyon. Çoğu ayda (15 ile 34 bin satır arasından) en büyük 10 satır karesel hatanın
+büyük kısmını oluşturuyor, Nisan'da ise tek bir satır hatanın yaklaşık dörtte üçü. Bu sütunlardan yedi
+haneli bir ek ödemeyi kimse tahmin edemez; o yüzden burada RMSE büyük ölçüde birkaç büyük tasarrufçuyu
+ne kadar kaçırdığına bağlı. Belirgin şekilde daha iyi bir modelin bile ortalamayı ancak %6–10 geçmesi,
+public leaderboard'un çoğunun 8.500 ile 9.400 arasında toplanması ve benim artık tek bir aya
+güvenmemem bundan.
 
-## 🔧 What the rebuild does differently / Yeniden kurulum neyi farklı yapıyor
+## 🔧 What I changed / Neleri değiştirdim
 
-**EN —**
-- **LightGBM with a Tweedie objective**, which is built for "mostly zeros, then a long positive
-  tail". Predictions can't go negative, and extreme feature values can't blow a prediction up the way
-  they did in the linear model.
-- **Missing values stay missing.** 17 of the 36 columns bottom out at exactly 100 (the anonymisation
-  seems to add a constant), so my 2024 `fillna(0)` put every gap *below* the real floor.
-- **Summaries of the 11 monthly contribution columns** (mean, spread, max, active months, trend,
-  ratio to the planned monthly amount).
-- **`month` is not a feature.** December never appears in training.
-- **Choices on dev months only.** Model, features and the Tweedie power (1.8, from {1.2, 1.5, 1.8})
-  were chosen on pooled dev RMSE; November got no vote.
+**EN —** I swapped linear regression for LightGBM with a Tweedie objective, which is made for data
+that's mostly zeros with a long tail. It can't predict negative amounts, and one extreme value in a
+column can't send a prediction flying the way it did in the linear model. I also stopped filling
+missing values with 0. Seventeen of the 36 columns never go below exactly 100 (my guess is the
+anonymisation added a constant), so a 0 was actually below the real floor; now LightGBM handles the
+gaps itself. On top of that I added a few summaries of the 11 monthly contribution columns (average,
+spread, maximum, how many months were paid, trend, and how they compare to the planned monthly
+amount), and dropped `month` as a feature, since December never appears in training. Every one of
+these choices, including the Tweedie setting of 1.8, was made on June to October only.
 
-**TR —**
-- **Tweedie objective'li LightGBM**: "çoğunlukla sıfır, sonra uzun pozitif kuyruk" şekli için
-  tasarlanmış. Tahminler negatife düşemiyor ve uç özellik değerleri, doğrusal modeldeki gibi tahmini
-  patlatamıyor.
-- **Eksik değerler eksik kalıyor.** 36 sütunun 17'si tam 100'de dipte kalıyor (anonimleştirme sabit bir
-  sayı eklemiş gibi); yani 2024'teki `fillna(0)` her boşluğu gerçek tabanın *altına* koyuyordu.
-- **11 aylık katkı sütununun özetleri** (ortalama, yayılım, maksimum, aktif ay sayısı, eğilim, planlanan
-  aylık tutara oran).
-- **`month` bir özellik değil.** Aralık eğitimde hiç yok.
-- **Seçimler sadece dev aylarında yapıldı.** Model, özellikler ve Tweedie parametresi
-  ({1,2; 1,5; 1,8} içinden 1,8) birleşik dev RMSE'ye göre seçildi; Kasım'ın oy hakkı olmadı.
+**TR —** Doğrusal regresyonu, çoğu sıfır ve uzun kuyruklu veriler için tasarlanmış Tweedie
+objective'li LightGBM ile değiştirdim. Negatif tutar tahmin edemiyor ve bir sütundaki tek bir uç değer,
+doğrusal modeldeki gibi tahmini uçuramıyor. Eksik değerleri 0 ile doldurmayı da bıraktım. 36 sütunun
+17'si hiçbir zaman tam 100'ün altına inmiyor (tahminim, anonimleştirme sırasında sabit bir sayı
+eklenmiş), yani 0 aslında gerçek tabanın altında kalıyordu; artık boşlukları LightGBM kendisi
+yönetiyor. Bunlara ek olarak 11 aylık katkı sütununun birkaç özetini ekledim (ortalama, dağılım,
+maksimum, kaç ay ödendiği, eğilim ve planlanan aylık tutarla karşılaştırma) ve Aralık eğitimde hiç
+olmadığı için `month`'u özelliklerden çıkardım. Tweedie parametresi olan 1,8 dahil bu kararların
+hepsini sadece Haziran–Ekim'e bakarak verdim.
 
 <p align="center"><img src="reports/figures/feature_importance.png" width="560"></p>
 
-## ⚠️ What I can't claim / İddia edemeyeceklerim
+## ⚠️ What I can't tell you yet / Henüz söyleyemediklerim
 
-**EN —** The test labels were never released, so I can't say what the rebuild would score on the
-leaderboard. `python train.py` writes `submissions/submission_final.csv` (and the exact 2024 replay
-next to it) for a late submission. One more clue: my 2024 submission predicted an average of
-**1,265** per customer for December, 62% above the historical mean of 783; the rebuild predicts
-**788**. Under RMSE a biased average costs on every row.
+**EN —** The real December answers were never released, so I don't know where the new model would
+land on the leaderboard. `python train.py` writes `submissions/submission_final.csv` (plus an exact
+replay of my 2024 submission) so I can try a late submission. One thing I did notice: my 2024
+submission predicted an average of **1,265** per customer for December, about 62% above the usual
+783. The new model predicts **788**. With RMSE, being off on the average costs you on every single
+row.
 
-**TR —** Test etiketleri hiç yayımlanmadı; dolayısıyla yeni modelin leaderboard'da ne alacağını
-söyleyemem. `python train.py`, geç gönderim için `submissions/submission_final.csv` dosyasını (yanına
-da 2024'ün birebir tekrarını) yazıyor. Bir ipucu daha: 2024 submission'ım Aralık için müşteri başına
-ortalama **1.265** tahmin etmiş; bu, geçmiş ortalama olan 783'ün %62 üstünde. Yeni model **788**
-tahmin ediyor. RMSE altında yanlı bir ortalama her satırda bedel ödetir.
+**TR —** Aralık'ın gerçek cevapları hiç yayımlanmadı, dolayısıyla yeni modelin leaderboard'da nereye
+düşeceğini bilmiyorum. `python train.py`, geç gönderim deneyebilmem için
+`submissions/submission_final.csv` dosyasını (yanına da 2024 submission'ımın birebir tekrarını)
+yazıyor. Yine de fark ettiğim bir şey var: 2024 submission'ım Aralık için müşteri başına ortalama
+**1.265** tahmin etmiş, bu da olağan 783'ün yaklaşık %62 üstü. Yeni model **788** diyor. RMSE'de
+ortalamayı kaçırmak her bir satırda sana ceza olarak geri dönüyor.
 
 ## 🗂️ Project structure / Proje yapısı
 
 ```
 garanti-bes-forecast/
-├── data/raw/                        # train.csv, test_input.csv (not committed, see below)
+├── data/raw/                        # train.csv, test_input.csv (not in the repo, see below)
 ├── notebooks/
-│   ├── 00_original_2024.ipynb       # my competition notebook, untouched (outputs cleared)
-│   └── 01_what_went_wrong.ipynb     # the full story, step by step
+│   ├── 00_original_2024.ipynb       # my competition notebook as it was (outputs cleared)
+│   └── 01_what_went_wrong.ipynb     # the whole story, step by step
 ├── src/
-│   ├── config.py                    # paths, dev/holdout months, LightGBM params
-│   ├── data.py                      # load + tidy both CSVs
-│   ├── original.py                  # the 2024 notebook as a function, one switch per bug
-│   ├── features.py                  # contribution summaries + leak-free customer history
-│   ├── model.py                     # mean baseline + LightGBM (Tweedie)
-│   ├── validation.py                # rolling-origin folds, RMSE, summaries
-│   ├── ladder.py                    # every version, 2024 -> final, plus side checks
-│   └── figures.py                   # README figures
-├── tests/test_pipeline.py           # no-leakage + bug-behaviour tests (synthetic data)
+│   ├── config.py                    # paths, validation months, LightGBM settings
+│   ├── data.py                      # loading and tidying both CSVs
+│   ├── original.py                  # my 2024 notebook as a function, with a switch per bug
+│   ├── features.py                  # contribution summaries + customer history (no peeking ahead)
+│   ├── model.py                     # the average baseline + LightGBM (Tweedie)
+│   ├── validation.py                # month-by-month validation and scoring
+│   ├── ladder.py                    # every version from 2024 to final, plus side checks
+│   └── figures.py                   # the charts in this README
+├── tests/test_pipeline.py           # leakage and bug tests on small made-up data
 ├── reports/                         # results.csv, checks.csv, figures/
 ├── models/metrics.json
-├── train.py                         # runs everything end to end (~3 min on a laptop CPU)
+├── train.py                         # runs everything (~3 min on my laptop)
 └── requirements.txt
 ```
 
-## 🚀 Getting started / Başlangıç
+## 🚀 Running it / Çalıştırmak için
 
-**EN —** The data belongs to a private Kaggle competition (`garanti-bbva-data-day-case-study`), so
-it is not in this repo. If you have access, put `train.csv` and `test_input.csv` into `data/raw/`.
-The tests run without it.
+**EN —** The data comes from a private Kaggle competition (`garanti-bbva-data-day-case-study`), so
+I can't share it here. If you have access, drop `train.csv` and `test_input.csv` into `data/raw/`.
+The tests don't need it.
 
-**TR —** Veri, özel bir Kaggle yarışmasına (`garanti-bbva-data-day-case-study`) ait olduğu için bu
-repoda yok. Erişiminiz varsa `train.csv` ve `test_input.csv` dosyalarını `data/raw/` içine koyun.
-Testler veri olmadan da çalışıyor.
+**TR —** Veri özel bir Kaggle yarışmasından (`garanti-bbva-data-day-case-study`) geliyor, o yüzden
+burada paylaşamıyorum. Erişimin varsa `train.csv` ve `test_input.csv` dosyalarını `data/raw/` içine
+koyman yeterli. Testler veriye ihtiyaç duymuyor.
 
 ```bash
 git clone https://github.com/derinteke/garanti-bes-forecast.git
@@ -238,30 +254,31 @@ source .venv/bin/activate            # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 pytest -q                            # 8 tests, no data needed
-python train.py                      # full ladder + final model + figures + submissions
+python train.py                      # every version + final model + charts + submissions
 jupyter notebook notebooks/01_what_went_wrong.ipynb
 ```
 
-## 🔭 Where I'd take it next / Bundan sonrası
+## 🔭 What I'd do next / Sırada ne var
 
-**EN —** First, a late submission to replace "I can't claim" with a real leaderboard number.
-Then I'd model the two questions separately: *will this customer contribute?* (where the history
-features clearly help) and *how much, if they do?*, with the second part trained on a loss that
-isn't at the mercy of a handful of seven-figure rows.
+**EN —** First I want to make a late submission, so the "I don't know yet" section gets a real
+number. After that I'd split the problem in two: will this customer contribute at all, which is where
+the history features clearly help, and if so, how much. The second part needs a loss that doesn't get
+thrown around by a few seven-figure rows.
 
-**TR —** İlk iş, "iddia edemem" kısmını gerçek bir leaderboard sayısıyla değiştirmek için geç
-gönderim yapmak. Sonra iki soruyu ayrı ayrı modellerdim: *bu müşteri katkı yapacak mı?* (geçmiş
-özelliklerinin açıkça işe yaradığı kısım) ve *yaparsa ne kadar?* İkinci kısmı da birkaç yedi haneli
-satırın insafına kalmayan bir kayıp fonksiyonuyla eğitirdim.
+**TR —** Önce geç gönderim yapmak istiyorum, böylece "henüz bilmiyorum" kısmına gerçek bir sayı
+yazabilirim. Sonra problemi ikiye bölerdim: müşteri katkı yapacak mı (geçmiş özelliklerinin açıkça işe
+yaradığı kısım bu) ve yapacaksa ne kadar. İkinci kısım için birkaç yedi haneli satırın savurmadığı bir
+kayıp fonksiyonu gerekiyor.
 
 ## 📚 Data / Veri
 
 **EN —** Garanti BBVA Data Day case study (Kaggle, 2024): 173,589 anonymised month-end snapshots of
-155,404 BES customers (March–November 2018) with anonymised banking and pension-plan features. The test set is 16,978 customers in December 2018.
+155,404 BES customers from March to November 2018, with banking and pension-plan columns. The test
+set is 16,978 customers in December 2018.
 
-**TR —** Garanti BBVA Data Day vaka çalışması (Kaggle, 2024): 155.404 BES müşterisine ait, 173.589
-anonimleştirilmiş ay sonu anlık görüntüsü (Mart–Kasım 2018); anonimleştirilmiş bankacılık ve emeklilik
-planı özellikleri içeriyor. Test seti, Aralık 2018'deki 16.978 müşteri.
+**TR —** Garanti BBVA Data Day vaka çalışması (Kaggle, 2024): Mart–Kasım 2018 arasında 155.404 BES
+müşterisine ait 173.589 anonimleştirilmiş ay sonu kaydı; bankacılık ve emeklilik planı sütunları
+içeriyor. Test seti Aralık 2018'deki 16.978 müşteri.
 
 ## 📄 License
 
